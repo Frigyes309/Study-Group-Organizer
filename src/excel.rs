@@ -1,85 +1,121 @@
 #![allow(unused_imports)]
 use crate::config::{do_config, dormitory_config, gtb_config, senior_config};
 use crate::log::{Error, Info};
-use crate::types::GTBStudent;
+use crate::types::{GTBStudent, Class, Gender, convert::DataConverter};
 //use calamine::{open_workbook_auto, DataType};
-use office::{Excel, Error as OfficeError};
+use office::{DataType, Error as OfficeError, Excel};
+use std::array;
+use std::ops::Deref;
+use std::path::Path;
+use std::sync::Arc;
 
-pub fn gtb_import(path: &str) -> Result<Vec<GTBStudent>, Error> {
+pub fn gtb_import(path: &str) -> Result<Arc<[GTBStudent]>, Error> {
     let mut workbook: Excel = match Excel::open(path) {
         Ok(wb) => wb,
         Err(_) => return Err(Error::CannotOpenExcelFile),
     };
     let worksheet: String = match workbook.sheet_names() {
-        Ok(sheets) => sheets.get(0).unwrap().to_string(),
+        Ok(sheets) => {
+            let sheet = sheets.get(0).expect("No problem, because at least 1 sheet is present here").to_string();
+            if sheets.len() > 1 {
+                Info::MultipleSheetsFound.print(vec![path.to_string(), sheet])?;
+            }
+            sheet
+        }
         Err(_) => return Err(Error::NoSheetsFound),
     };
-    match workbook.worksheet_range(&worksheet) {
-        Ok(0) => return Err(Error::NoSheetsFound),
-        Ok(x) => {
-            if x > 1 {
-                Info::MultipleSheetsFound.print(vec![path.to_string(), workbook.sheet_names()?.get(0).to_string()])?;
-            }
-        },
-        Err(_) => return Err(Error::DataConversionError),
+    let filename: String;
+    if let Some(f) = Path::new(path).file_name() {
+        filename = String::from(f.to_str().expect("Filename contains invalid UTF-8"));
+    } else {
+        return Err(Error::MissingFilename)
     }
-    let filename:String = match path.split("/").last()? {
-        Ok(f) => f.to_string(),
-        Err(_) => return Err(Error::MissingFilename),
-    };
     let config = gtb_config();
-    let mut students = Vec::new();
-    if let Some(Ok(range)) = workbook.worksheet_range(workbook.sheet_names()?.get(0)) {
+    let students: Box<[GTBStudent]> = Box::new([]);
+    if let range = workbook.worksheet_range(&worksheet)? {
         for row in range.rows().skip(1) {
-            let mut missing_data = false;
-            let neptun = row[config.get(0)]  {
-                //value.is_string() => value,
-                DataType::is_empty(_) => {
-                    missing_data = true;
-                    "".to_string()
+            let neptun = get_verified_cell(row, 0, 2)?.to_string()?;
+            let room_senior = get_verified_cell(row, 1, 2)?.to_string()?;
+            let card_senior = get_verified_cell(row, 2, 2)?.to_string()?;
+            let color = get_verified_cell(row, 3, 2)?.to_string()?;
+            if neptun.is_empty() || room_senior.is_empty() || card_senior.is_empty() || color.is_empty() {
+                if !neptun.is_empty() || !room_senior.is_empty() || !card_senior.is_empty() || !color.is_empty() {
+                    return Err(Error::MissingData)
                 }
-                _ => return Err(Error::DataConversionError),
-            };
-            let room_senior = match row[config.get(1)] {
-                DataType::is_string(value) => value,
-                DataType::is_empty(_) => {
-                    if missing_data {
-                        return Err(Error::DataConversionError);
-                    }
-                    missing_data = true;
-                    "".to_string()
-                }
-                _ => return Err(Error::DataConversionError),
-            };
-            let card_senior = match row[config.get(2)] {
-                DataType::is_string(value) => value,
-                DataType::is_empty(_) => {
-                    if missing_data {
-                        return Err(Error::DataConversionError);
-                    }
-                    missing_data = true;
-                    "".to_string()
-                }
-                _ => return Err(Error::DataConversionError),
-            };
-            let color = match row[config.get(3)] {
-                DataType::is_string(value) => value,
-                DataType::is_empty(_) => {
-                    if missing_data {
-                        return Err(Error::DataConversionError);
-                    }
-                    missing_data = true;
-                    "".to_string()
-                }
-                _ => return Err(Error::DataConversionError),
-            };
-            let student = GTBStudent::new(neptun, room_senior, card_senior, color);
-            if missing_data {
                 Info::FoundEmptyCell.print(vec![filename])?;
-            } else {
-                students.push(student);
             }
+            let student = GTBStudent::new(neptun, room_senior, card_senior, color);
+            students.push(student);
         }
     }
-    Ok(students)
+    let arc = Arc::new(students);
+    Ok(arc)
+}
+
+fn get_verified_cell(row: &[DataType], element: usize, cast_option: u8) -> Result<DataConverter, Error> {
+    let value = match row.get(element) {
+        Some(x) => *x,
+        None => return Err(Error::DataConversionError)
+    };
+    let data = match cast_option {
+        1 => {
+            match value {
+                DataType::Int(value) => {
+                    if value < 0 {
+                        return Err(Error::DataConversionError);
+                    }
+                    DataConverter::UInt(value as u32)
+                },
+                _ => return Err(Error::DataConversionError)
+            }
+        }
+        2 => {
+            match value {
+                DataType::String(value) => DataConverter::String(value),
+                DataType::Empty => DataConverter::String("".to_string()),
+                _ => return Err(Error::DataConversionError)
+            }
+        }
+        3 => {
+            match value {
+                DataType::Bool(value) => DataConverter::Bool(value),
+                _ => return Err(Error::DataConversionError)
+            }
+        }
+        4 => {
+            match value {
+                DataType::String(value) => DataConverter::Class(Class::Imsc),
+                DataType::Empty => DataConverter::Class(Class::Standard),
+                _ => return Err(Error::DataConversionError)
+            }
+        }
+        5 => {
+            match value {
+                DataType::String(value) => DataConverter::Class(Class::German),
+                DataType::Empty => DataConverter::Class(Class::Standard),
+                _ => return Err(Error::DataConversionError)
+            }
+        }
+        6 => {
+            match value {
+                DataType::String(value) => DataConverter::Class(Class::English),
+                DataType::Empty => DataConverter::Class(Class::Standard),
+                _ => return Err(Error::DataConversionError)
+            }
+        }
+        7 => {
+            match value {
+                DataType::String(value) => {
+                    match value.as_str() {
+                        "Férfi" => DataConverter::Gender(Gender::Male),
+                        "Nő" => DataConverter::Gender(Gender::Female),
+                        _ => return Err(Error::DataConversionError)
+                    }
+                },
+                _ => return Err(Error::DataConversionError)
+            }
+        }
+        _ => return Err(Error::DataConversionError)
+    };
+    Ok(data)
 }

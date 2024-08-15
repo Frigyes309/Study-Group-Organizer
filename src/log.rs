@@ -8,6 +8,7 @@ pub enum Error {
     DataConversionError,
     MissingData,
     MissingFilename,
+    ForeignError,
 }
 
 impl std::fmt::Display for Error {
@@ -31,6 +32,7 @@ impl std::fmt::Display for Error {
             Error::MissingFilename => {
                 write!(f, "{} Missing filename in the path", "[Error]".red())
             }
+            Error::ForeignError => write!(f, "{} Foreign error", "[Error]".red()),
         }
     }
 }
@@ -73,5 +75,17 @@ impl Info {
                 Ok(())
             }
         }
+    }
+}
+
+impl From<anyhow::Error> for Error {
+    fn from(error: anyhow::Error) -> Self {
+        Error::ForeignError
+    }
+}
+
+impl From<office::Error> for Error {
+    fn from(error: office::Error) -> Self {
+        Error::ForeignError
     }
 }

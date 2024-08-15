@@ -1,9 +1,13 @@
-enum Gender {
+pub mod convert;
+
+#[derive(Clone)]
+pub enum Gender {
     Male,
     Female,
     Other,
 }
 
+#[derive(Clone)]
 enum Color {
     Yellow,
     Blue,
@@ -12,7 +16,8 @@ enum Color {
     White,
 }
 
-enum Class {
+#[derive(Clone)]
+pub enum Class {
     Standard,
     Imsc,
     German,
@@ -26,8 +31,8 @@ enum Coordinate {
 
 pub struct GTBStudent {
     neptun: String,
-    roomSenior: String,
-    cardSenior: String,
+    room_senior: String,
+    card_senior: String,
     color: String,
 }
 
@@ -43,26 +48,26 @@ pub struct DOStudent {
     zip: u32,
     gender: Gender,
     class: Class,
-    doublePassive: bool,
+    double_passive: bool,
 }
 
 pub struct SeniorGroup {
-    courseCode: String,
+    course_code: String,
     // senior: Vec<Color>, Nobody cares
-    preferredColor: Color,
+    preferred_color: Color,
 }
 
 impl GTBStudent {
     pub fn new(
         neptun: String,
-        roomSenior: String,
-        cardSenior: String,
+        room_senior: String,
+        card_senior: String,
         color: String,
     ) -> GTBStudent {
         GTBStudent {
             neptun,
-            roomSenior,
-            cardSenior,
+            room_senior,
+            card_senior,
             color,
         }
     }
