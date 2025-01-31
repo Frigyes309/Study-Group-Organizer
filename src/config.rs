@@ -14,7 +14,7 @@
 /// - Room senior
 /// - Card senior
 /// - Color
-pub fn gtb_config() -> Vec<u8> {
+pub fn gtb_config() -> Vec<usize> {
     let mut config: Vec<char> = Vec::new();
 
     // Neptun code
@@ -29,8 +29,8 @@ pub fn gtb_config() -> Vec<u8> {
     // Color
     config.push('D');
 
-    // Return the configuration in the required formatting
-    chars_to_u8(config)
+    // Return the configuration in the required formatting - do not touch this
+    chars_to_usize(config)
 }
 
 /// ## DormitoryConfig() returns the configuration of the koli.xlsx file
@@ -38,7 +38,7 @@ pub fn gtb_config() -> Vec<u8> {
 /// - Neptun code
 /// - Room
 /// - Color
-pub fn dormitory_config() -> Vec<u8> {
+pub fn dormitory_config() -> Vec<usize> {
     let mut config: Vec<char> = Vec::new();
 
     // Neptun code
@@ -50,8 +50,8 @@ pub fn dormitory_config() -> Vec<u8> {
     // Color
     config.push('C');
 
-    // Return the configuration in the required formatting
-    chars_to_u8(config)
+    // Return the configuration in the required formatting - do not touch this
+    chars_to_usize(config)
 }
 
 /// ## DOConfig() returns the configuration of the dh.xlsx file
@@ -63,7 +63,7 @@ pub fn dormitory_config() -> Vec<u8> {
 /// - IMSc class
 /// - Double passive
 /// - German class
-pub fn do_config() -> Vec<u8> {
+pub fn do_config() -> Vec<usize> {
     let mut config: Vec<char> = Vec::new();
 
     // Neptun code
@@ -87,15 +87,15 @@ pub fn do_config() -> Vec<u8> {
     // German class
     config.push('H');
 
-    // Return the configuration in the required formatting
-    chars_to_u8(config)
+    // Return the configuration in the required formatting - do not touch this
+    chars_to_usize(config)
 }
 
 /// ## SeniorConfig() returns the configuration of the tsz.xlsx file
 /// ### Required columns:
 /// - Course code
 /// - Preferred color
-pub fn senior_config() -> Vec<u8> {
+pub fn senior_config() -> Vec<usize> {
     let mut config: Vec<char> = Vec::new();
 
     // Course code
@@ -104,22 +104,22 @@ pub fn senior_config() -> Vec<u8> {
     // Preferred color
     config.push('O');
 
-    // Return the configuration in the required formatting
-    chars_to_u8(config)
+    // Return the configuration in the required formatting - do not touch this
+    chars_to_usize(config)
 }
 
-fn chars_to_u8(chars: Vec<char>) -> Vec<u8> {
-    let mut u8s: Vec<u8> = Vec::new();
+fn chars_to_usize(chars: Vec<char>) -> Vec<usize> {
+    let mut usizes: Vec<usize> = Vec::new();
     let vocabulary = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     for c in chars {
         let mut i = 0;
         for v in vocabulary.chars() {
             if c == v {
-                u8s.push(i);
+                usizes.push(i);
                 break;
             }
             i += 1;
         }
     }
-    u8s
+    usizes
 }

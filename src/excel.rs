@@ -9,18 +9,18 @@ use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 
-pub fn gtb_import(path: &str) -> Result<Arc<[GTBStudent]>, Error> {
+pub fn gtb_import(path: &str) -> Result<Arc<Vec<GTBStudent>>, Error> {
     let mut workbook: Excel = match Excel::open(path) {
         Ok(wb) => wb,
         Err(_) => return Err(Error::CannotOpenExcelFile),
     };
     let worksheet: String = match workbook.sheet_names() {
         Ok(sheets) => {
-            let sheet = sheets.get(0).expect("No problem, because at least 1 sheet is present here").to_string();
+            let sheet = sheets.get(0).expect("No problem, because at least 1 sheet is present here");
             if sheets.len() > 1 {
-                Info::MultipleSheetsFound.print(vec![path.to_string(), sheet])?;
+                Info::MultipleSheetsFound.print(vec![path.to_string(), sheet.clone()])?;
             }
-            sheet
+            sheet.clone()
         }
         Err(_) => return Err(Error::NoSheetsFound),
     };
@@ -31,22 +31,33 @@ pub fn gtb_import(path: &str) -> Result<Arc<[GTBStudent]>, Error> {
         return Err(Error::MissingFilename)
     }
     let config = gtb_config();
-    let students: Box<[GTBStudent]> = Box::new([]);
-    if let range = workbook.worksheet_range(&worksheet)? {
-        for row in range.rows().skip(1) {
-            let neptun = get_verified_cell(row, 0, 2)?.to_string()?;
-            let room_senior = get_verified_cell(row, 1, 2)?.to_string()?;
-            let card_senior = get_verified_cell(row, 2, 2)?.to_string()?;
-            let color = get_verified_cell(row, 3, 2)?.to_string()?;
-            if neptun.is_empty() || room_senior.is_empty() || card_senior.is_empty() || color.is_empty() {
-                if !neptun.is_empty() || !room_senior.is_empty() || !card_senior.is_empty() || !color.is_empty() {
-                    return Err(Error::MissingData)
-                }
-                Info::FoundEmptyCell.print(vec![filename])?;
+    let mut students: Vec<GTBStudent> = Vec::new();
+    let range = workbook.worksheet_range(&worksheet)?;
+    for row in range.rows().skip(1) {
+        let neptun = match get_verified_cell(row, config[0], 2)?.to_string() {
+                Some(x) => x,
+                None => return Err(Error::DataConversionError),
+        };
+        let room_senior = match get_verified_cell(row, config[1], 2)?.to_string() {
+            Some(x) => x,
+            None => return Err(Error::DataConversionError),
+        };
+        let card_senior = match get_verified_cell(row, config[2], 2)?.to_string() {
+            Some(x) => x,
+            None => return Err(Error::DataConversionError),
+        };
+        let color = match get_verified_cell(row, config[3], 2)?.to_string() {
+            Some(x) => x,
+            None => return Err(Error::DataConversionError),
+        };
+        if neptun.is_empty() || room_senior.is_empty() || card_senior.is_empty() || color.is_empty() {
+            if !neptun.is_empty() || !room_senior.is_empty() || !card_senior.is_empty() || !color.is_empty() {
+                return Err(Error::MissingData)
             }
-            let student = GTBStudent::new(neptun, room_senior, card_senior, color);
-            students.push(student);
+            Info::FoundEmptyCell.print(vec![filename.clone()])?;
         }
+        let student = GTBStudent::new(neptun, room_senior, card_senior, color);
+        students.push(student);
     }
     let arc = Arc::new(students);
     Ok(arc)
@@ -54,7 +65,7 @@ pub fn gtb_import(path: &str) -> Result<Arc<[GTBStudent]>, Error> {
 
 fn get_verified_cell(row: &[DataType], element: usize, cast_option: u8) -> Result<DataConverter, Error> {
     let value = match row.get(element) {
-        Some(x) => *x,
+        Some(x) => x.clone(),
         None => return Err(Error::DataConversionError)
     };
     let data = match cast_option {
